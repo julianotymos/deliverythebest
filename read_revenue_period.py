@@ -1,0 +1,120 @@
+import streamlit as st
+import pandas as pd
+from get_bigquery_client import get_bigquery_client
+from datetime import date
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def read_revenue_period(start_date: date, end_date: date , sales_channel:str) :
+    """
+    Retorna métricas de faturamento, custo, lucro, margem e clientes
+    entre as datas informadas (inclusive).
+
+    :param start_date: Data inicial (datetime.date)
+    :param end_date: Data final (datetime.date)
+    """
+
+    client = get_bigquery_client()
+    if sales_channel == '99food' :
+        sales_channel_id = 2
+    elif sales_channel == 'iFood' :
+        sales_channel_id = 1
+    else :
+        sales_channel_id = 0
+    # Converter para string no formato YYYY-MM-DD
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
+
+    query = f"""
+    SELECT  
+        DATE(ot.CREATED_AT) AS order_date,
+        SUM(bi.sub_total_value) AS revenue,  
+        SUM(p.cost * bi.quantity) AS cost,  
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
+                 THEN ot.total_bag_detail - 3 
+                 ELSE ot.net_value END),2) AS received,  
+            
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
+                 THEN ot.total_bag_detail - 3 
+                 ELSE ot.net_value END 
+            - (p.cost * bi.quantity)), 2) AS net_profit,  
+
+        ROUND( (ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
+                 THEN ot.total_bag_detail - 3 
+                 ELSE ot.net_value END 
+            - (p.cost * bi.quantity)), 2) 
+            /SUM((bi.sub_total_value / ot.total_bag_detail) * 
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
+                 THEN ot.total_bag_detail - 3 
+                 ELSE ot.net_value END) *100 ) , 2 ) AS margin,  
+
+        ROUND(((SUM((bi.sub_total_value / ot.total_bag_detail) * 
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
+                 THEN ot.total_bag_detail - 3 
+                 ELSE ot.net_value END 
+            - (p.cost * bi.quantity)) / SUM(p.cost * bi.quantity)) * 100),2) AS markup,  
+
+        COUNT(1) AS items,  
+        QOT.QTY_PEDIDOS AS orders_count,
+        QOT.NOVOS_CLIENTES AS new_customers,
+        QOT.CLIENTES_RECORRENTES AS returning_customers
+
+    FROM BAG_ITEMS bi  
+    INNER JOIN ORDERS_TABLE ot ON ot.id = bi.ORDER_ID  
+    LEFT JOIN PRODUCT p 
+        ON p.name = bi.name  
+       AND P.SALES_CHANNEL = {sales_channel_id}
+       AND DATE(OT.CREATED_AT) BETWEEN P.VALID_FROM_DATE AND P.VALID_TO_DATE
+    LEFT JOIN CUSTOMER C ON C.ID = OT.CUSTOMER_ID 
+
+    LEFT JOIN (  
+        SELECT DATE(ot.CREATED_AT) AS order_date, 
+               COUNT(1) AS QTY_PEDIDOS,
+               SUM(CASE WHEN OT.TOTAL_ORDERS = 1 THEN 1 ELSE 0 END) AS NOVOS_CLIENTES,
+               SUM(CASE WHEN OT.TOTAL_ORDERS > 1 THEN 1 ELSE 0 END) AS CLIENTES_RECORRENTES 
+        FROM ORDERS_TABLE ot  
+        WHERE ot.sales_channel = '{sales_channel}'
+        GROUP BY DATE(ot.CREATED_AT)  
+    ) QOT ON QOT.order_date = DATE(ot.CREATED_AT)  
+
+    WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED')
+      AND ot.sales_channel = '{sales_channel}'
+      AND DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
+    GROUP BY
+        DATE(ot.CREATED_AT),
+        QOT.QTY_PEDIDOS,
+        QOT.NOVOS_CLIENTES,
+        QOT.CLIENTES_RECORRENTES
+    ORDER BY DATE(ot.CREATED_AT) DESC
+    """
+
+    try:
+        query_job = client.query(query)
+        #print(query)
+        df = query_job.to_dataframe()
+        df = df.rename(columns={
+            'order_date': 'Data',
+            'revenue': 'Faturamento',
+            'cost': 'Custo',
+            'received': 'Recebido',
+            'net_profit': 'Lucro Líquido',
+            'margin': 'Margem (%)',
+            'markup': 'Markup (%)',
+            'items': 'Itens Vendidos',
+            'orders_count': 'Qtd. Pedidos',
+            'new_customers': 'Novos Clientes',
+            'returning_customers': 'Clientes Recorrentes'
+        })
+        return df
+    except Exception as e:
+        st.error(f"Erro ao buscar métricas de faturamento: {e}")
+        return pd.DataFrame()
+    
+#start_date = st.date_input("Start Date", value=date(2025, 8, 1))
+#end_date = st.date_input("End Date", value=date(2025, 8, 31))
+#
+#df = read_revenue_period(start_date, end_date , sales_channel='iFood')
+#print(df)

@@ -1,68 +1,60 @@
-import streamlit as st
+import datetime
+import random
+import altair as alt
+import numpy as np
 import pandas as pd
-from get_bigquery_client import get_bigquery_client
-from read_customer_frequency_data import  read_total_customers_count , read_customer_frequency_data
-st.set_page_config(layout="wide")
-st.title("Frequência de Compras de Clientes")
+import streamlit as st
+from read_process_last_run import read_process_last_run
+from datetime import datetime, timedelta
+from typing import List
+from tab_revenue_analysis import tab_revenue_analysis  # <-- substitui tab_sales_total
+from tab_product_analysis import tab_product_analysis  # <-- substitui tab_sales_total
+from tab_subitem_analysis import tab_subitem_analysis
 
-sales_channels = [
-    "",          # opção para não enviar filtro
-    "Loja",
-    "iFood",
-    "99food",
-    "Loja/iFood",
-    "Loja/99food",
-    "iFood/99food",
-    "Loja/iFood/99food"
-]
+# --- Início da Aplicação Streamlit ---
 
-# Filtros na barra lateral
-with st.sidebar:
-    st.subheader("Filtros")
-    f_sales_channel = st.selectbox("Selecione o canal de vendas:",
-    sales_channels
-)
-    f_name = st.text_input("Nome do Cliente")
-    f_phone = st.text_input("Telefone")
-    f_doc = st.text_input("CPF")
-
-# Total de clientes considerando filtros
-total_customers = read_total_customers_count(
-    sales_channel=f_sales_channel or None,
-    name=f_name or None,
-    phone_number=f_phone or None,
-    document_number=f_doc or None
+st.set_page_config(
+    page_title="Dashboard de Vendas",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-rows_per_page_options = [25, 50, 100, 200]
+st.title("📊 Performance Delivery")
+st.markdown("Visão geral de performance ( iFood e 99food).")
 
-bottom_menu = st.columns((4, 1, 1))
-with bottom_menu[2]:
-    rows_per_page = st.selectbox("Linhas por Página", options=rows_per_page_options)
+# --- Barra Lateral para Filtros e Status ---
+st.sidebar.header("🗓️ Período de Análise")
+sales_channels = ["iFood", "99food"]
 
-with bottom_menu[1]:
-    total_pages = (total_customers // rows_per_page) + (1 if total_customers % rows_per_page > 0 else 0)
-    current_page = st.number_input("Página", min_value=1, max_value=max(total_pages,1), step=1)
+start_date = st.sidebar.date_input("Data Inicial", (datetime.now() - timedelta(days=1)).date())
+end_date = st.sidebar.date_input("Data Final", datetime.now().date())
 
-with bottom_menu[0]:
-    st.markdown(f"Página **{current_page}** de **{total_pages}** ")
+# ✅ Canal de vendas na barra lateral
+f_sales_channel = st.sidebar.selectbox("Selecione o canal de vendas:", sales_channels)
 
-# Dados da página atual
-df_customers = read_customer_frequency_data(
-    page_number=current_page,
-    rows_per_page=rows_per_page,
-    sales_channel=f_sales_channel or None,
-    name=f_name or None,
-    phone_number=f_phone or None,
-    document_number=f_doc or None
-)
-
-if not df_customers.empty:
-    st.dataframe(df_customers, use_container_width=True)
-    st.caption(
-        f"Exibindo clientes de {((current_page - 1) * rows_per_page) + 1} "
-        f"a {min(current_page * rows_per_page, total_customers)} "
-        f"de um total de {total_customers}."
-    )
+if start_date > end_date:
+    st.sidebar.error("⚠️ Erro: A data inicial não pode ser posterior à data final.")
 else:
-    st.info("Não foi possível carregar os dados. Verifique os filtros ou a conexão com o BigQuery.")
+    # --- Criação das Abas ---
+    tab_revenue, tab_products , tab_subitem = st.tabs(["Performance Vendas", "Performance de Produtos", "Preferencias Cliente"])
+
+    # ---- Aba de Resumo de Receita ----
+    with tab_revenue:
+        tab_revenue_analysis(start_date, end_date, sales_channel=f_sales_channel)
+
+    # ---- Aba de Performance de Produtos ----
+    with tab_products:
+        product_df = tab_product_analysis(start_date, end_date, f_sales_channel)
+        
+    with tab_subitem:
+        product_df = tab_subitem_analysis(start_date, end_date, f_sales_channel)
+
+    # --- Status de Processamento na Barra Lateral ---
+    st.sidebar.markdown("---")
+    st.sidebar.header("🔄 Status de Processamento")
+    last_run_df = read_process_last_run(["BIG_QUERY_PROCESS"])
+    if not last_run_df.empty:
+        for index, row in last_run_df.iterrows():
+            st.sidebar.info(f"**{row['name']}**\nÚltima atualização: {row['last_run_date'].strftime('%d/%m/%Y %H:%M:%S')}")
+    else:
+        st.sidebar.warning("Nenhum dado de status encontrado.")
