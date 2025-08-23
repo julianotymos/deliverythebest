@@ -38,12 +38,13 @@ def read_product(
     SELECT 
         P.ID,
         P.NAME,
+        SC.SALES_CHANNEL_ID AS CHANNEL,
         P.CATEGORY,
         P.COST,
-        SC.SALES_CHANNEL_ID AS CHANNEL,
         S.SHORT_DESC AS STATUS,
         P.VALID_FROM_DATE,
-        P.VALID_TO_DATE
+        P.VALID_TO_DATE ,
+        
     FROM
         PRODUCT P
     INNER JOIN
@@ -61,11 +62,13 @@ def read_product(
         
         # O problema está aqui. A linha estava faltando a reatribuição.
         df = df.rename(columns={
+            "CHANNEL": 'Canal' ,
             "NAME": "Produto",
             "COST": "Custo de Materia Prima",
             "STATUS": "Status na Plataforma",
             "VALID_FROM_DATE": "Custo vigente de",
-            "VALID_TO_DATE": "Custo vigente até"
+            "VALID_TO_DATE": "Custo vigente até" 
+            
         })
     
         if not df.empty:

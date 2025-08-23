@@ -4,27 +4,27 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_product_performance(start_date: date, end_date: date, sales_channel: str):
+def read_product_performance(start_date: date, end_date: date, sales_channel: str = None):
     """
     Retorna métricas de vendas por produto (quantidade, valor, custo, lucro, markup)
-    no período informado e para o canal de vendas especificado.
+    no período informado e para o canal de vendas especificado (opcional).
     """
 
     client = get_bigquery_client()
-    if sales_channel == '99food':
-        sales_channel_id = 2
-    elif sales_channel == 'iFood':
-        sales_channel_id = 1
-    else:
-        sales_channel_id = 0
 
     # Converter datas para string no formato YYYY-MM-DD
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
 
+    # Cláusula WHERE condicional para o canal de vendas
+    where_channel_clause = ""
+    if sales_channel:
+        where_channel_clause = f"AND ot.SALES_CHANNEL = '{sales_channel}'"
+
     query = f"""
     SELECT 
         p.NAME,
+        STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
         SUM(BI.Quantity) AS qtd_itens,
         ROUND(SUM(bi.sub_total_value), 2) AS total_venda,
         ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
@@ -32,17 +32,19 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / COUNT(1), 2) AS lucro_liquido_medio_item,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup ,
-       ROUND( ((SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) ) * 100 ) ,2 ) AS Margem
+        ROUND( ((SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) ) * 100 ) ,2 ) AS Margem
     FROM BAG_ITEMS bi 
     INNER JOIN ORDERS_TABLE ot 
         ON ot.id = bi.ORDER_ID 
-    LEFT JOIN PRODUCT p 
+    LEFT JOIN (SELECT P.NAME ,P.COST, p.VALID_FROM_DATE , p.VALID_TO_DATE , CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P 
+INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p 
         ON p.name = bi.name 
-       AND p.sales_channel = {sales_channel_id}
-       AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
-    WHERE DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
-      AND ot.SALES_CHANNEL = '{sales_channel}'
-    GROUP BY p.NAME, bi.NAME
+        AND p.sales_channel = OT.SALES_CHANNEL
+        AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
+    WHERE
+        DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
+        {where_channel_clause}
+    GROUP BY p.NAME
     ORDER BY qtd_itens DESC
     """
 
@@ -51,7 +53,7 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         df = query_job.to_dataframe()
         df = df.rename(columns={
             "NAME": "Produto",
-            "qtd_itens": "Qtd. Itens",
+            "qtd_itens": "Quantidade",
             "total_venda": "Faturamento",
             "cost": "Custo",
             "net_item": "Receita Líquida",
@@ -59,13 +61,11 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
             "lucro_liquido_medio_item": "Lucro Médio por Item",
             "Markup": "Markup (%)",
             "Margem": "Margem (%)",
-
         })
         return df
     except Exception as e:
         st.error(f"Erro ao buscar métricas de produtos: {e}")
         return pd.DataFrame()
-
 # --------------------------
 # Interface Streamlit
 # --------------------------

@@ -15,7 +15,6 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str):
 
     # ---- CHAMADAS DE DADOS ----
     revenue_df = read_revenue_period(start_date, end_date, sales_channel)
-    order_df = read_order_performance(end_date, sales_channel)  # exemplo: último dia como detalhe
 
     if not revenue_df.empty:
         # ---- TOTAL (última linha somada) ----

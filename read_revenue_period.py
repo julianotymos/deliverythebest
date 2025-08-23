@@ -5,84 +5,88 @@ from datetime import date
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_revenue_period(start_date: date, end_date: date , sales_channel:str) :
+def read_revenue_period(start_date: date, end_date: date, sales_channel: str = None):
     """
     Retorna métricas de faturamento, custo, lucro, margem e clientes
     entre as datas informadas (inclusive).
 
     :param start_date: Data inicial (datetime.date)
     :param end_date: Data final (datetime.date)
+    :param sales_channel: Canal de vendas (opcional)
     """
 
     client = get_bigquery_client()
-    if sales_channel == '99food' :
-        sales_channel_id = 2
-    elif sales_channel == 'iFood' :
-        sales_channel_id = 1
-    else :
-        sales_channel_id = 0
+
     # Converter para string no formato YYYY-MM-DD
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
 
+    # Cláusula WHERE condicional para o canal de vendas
+    where_channel_clause = ""
+    if sales_channel:
+        where_channel_clause = f"AND ot.sales_channel = '{sales_channel}'"
+
     query = f"""
-    SELECT  
+    SELECT
         DATE(ot.CREATED_AT) AS order_date,
-        SUM(bi.sub_total_value) AS revenue,  
-        SUM(p.cost * bi.quantity) AS cost,  
-        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
-            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
-                 THEN ot.total_bag_detail - 3 
-                 ELSE ot.net_value END),2) AS received,  
-            
-        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
-            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
-                 THEN ot.total_bag_detail - 3 
-                 ELSE ot.net_value END 
-            - (p.cost * bi.quantity)), 2) AS net_profit,  
+        STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
+        SUM(bi.sub_total_value) AS revenue,
+        SUM(p.cost * bi.quantity) AS cost,
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END),2) AS received,
 
-        ROUND( (ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) * 
-            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
-                 THEN ot.total_bag_detail - 3 
-                 ELSE ot.net_value END 
-            - (p.cost * bi.quantity)), 2) 
-            /SUM((bi.sub_total_value / ot.total_bag_detail) * 
-            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
-                 THEN ot.total_bag_detail - 3 
-                 ELSE ot.net_value END) *100 ) , 2 ) AS margin,  
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)), 2) AS net_profit,
 
-        ROUND(((SUM((bi.sub_total_value / ot.total_bag_detail) * 
-            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL 
-                 THEN ot.total_bag_detail - 3 
-                 ELSE ot.net_value END 
-            - (p.cost * bi.quantity)) / SUM(p.cost * bi.quantity)) * 100),2) AS markup,  
+        ROUND( (ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)), 2)
+            /SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END) *100 ) , 2 ) AS margin,
 
-        COUNT(1) AS items,  
+        ROUND(((SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)) / SUM(p.cost * bi.quantity)) * 100),2) AS markup,
+
+        COUNT(1) AS items,
         QOT.QTY_PEDIDOS AS orders_count,
         QOT.NOVOS_CLIENTES AS new_customers,
         QOT.CLIENTES_RECORRENTES AS returning_customers
 
-    FROM BAG_ITEMS bi  
-    INNER JOIN ORDERS_TABLE ot ON ot.id = bi.ORDER_ID  
-    LEFT JOIN PRODUCT p 
-        ON p.name = bi.name  
-       AND P.SALES_CHANNEL = {sales_channel_id}
-       AND DATE(OT.CREATED_AT) BETWEEN P.VALID_FROM_DATE AND P.VALID_TO_DATE
-    LEFT JOIN CUSTOMER C ON C.ID = OT.CUSTOMER_ID 
+    FROM BAG_ITEMS bi
+    INNER JOIN ORDERS_TABLE ot ON ot.id = bi.ORDER_ID
+    LEFT JOIN (SELECT P.NAME, P.COST, p.VALID_FROM_DATE, p.VALID_TO_DATE, CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P
+INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
+        ON p.name = bi.name
+        AND p.sales_channel = OT.SALES_CHANNEL
+        AND DATE(OT.CREATED_AT) BETWEEN P.VALID_FROM_DATE AND P.VALID_TO_DATE
+    LEFT JOIN CUSTOMER C ON C.ID = OT.CUSTOMER_ID
 
-    LEFT JOIN (  
-        SELECT DATE(ot.CREATED_AT) AS order_date, 
+    LEFT JOIN (
+        SELECT DATE(ot.CREATED_AT) AS order_date,
                COUNT(1) AS QTY_PEDIDOS,
                SUM(CASE WHEN OT.TOTAL_ORDERS = 1 THEN 1 ELSE 0 END) AS NOVOS_CLIENTES,
-               SUM(CASE WHEN OT.TOTAL_ORDERS > 1 THEN 1 ELSE 0 END) AS CLIENTES_RECORRENTES 
-        FROM ORDERS_TABLE ot  
-        WHERE ot.sales_channel = '{sales_channel}'
-        GROUP BY DATE(ot.CREATED_AT)  
-    ) QOT ON QOT.order_date = DATE(ot.CREATED_AT)  
+               SUM(CASE WHEN OT.TOTAL_ORDERS > 1 THEN 1 ELSE 0 END) AS CLIENTES_RECORRENTES
+        FROM ORDERS_TABLE ot
+        WHERE DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
+        {where_channel_clause} -- Adicionei o filtro aqui
+        GROUP BY DATE(ot.CREATED_AT)
+    ) QOT ON QOT.order_date = DATE(ot.CREATED_AT)
 
     WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED')
-      AND ot.sales_channel = '{sales_channel}'
       AND DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
+      {where_channel_clause} -- E adicionei o filtro aqui também
     GROUP BY
         DATE(ot.CREATED_AT),
         QOT.QTY_PEDIDOS,
@@ -93,7 +97,6 @@ def read_revenue_period(start_date: date, end_date: date , sales_channel:str) :
 
     try:
         query_job = client.query(query)
-        #print(query)
         df = query_job.to_dataframe()
         df = df.rename(columns={
             'order_date': 'Data',

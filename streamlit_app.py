@@ -24,7 +24,7 @@ st.markdown("Visão geral de performance ( iFood e 99food).")
 
 # --- Barra Lateral para Filtros e Status ---
 st.sidebar.header("🗓️ Período de Análise")
-sales_channels = ["iFood", "99food"]
+sales_channels = ["","iFood", "99food"]
 
 start_date = st.sidebar.date_input("Data Inicial", (datetime.now() - timedelta(days=1)).date())
 end_date = st.sidebar.date_input("Data Final", datetime.now().date())

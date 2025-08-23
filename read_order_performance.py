@@ -4,27 +4,30 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_order_performance(order_date: date, sales_channel: str):
+def read_order_performance(order_date: date, sales_channel: str = None):
     """
     Retorna métricas detalhadas por pedido (itens, valor, custo, lucro, markup)
-    no período informado e para o canal de vendas especificado.
+    no período informado e para o canal de vendas especificado (opcional).
     """
 
     client = get_bigquery_client()
-    if sales_channel == '99food':
-        sales_channel_id = 2
-    elif sales_channel == 'iFood':
-        sales_channel_id = 1
-    else:
-        sales_channel_id = 0
+    
+    # Removi a lógica de sales_channel_id, pois não é utilizada na query SQL.
+    # O filtro agora é feito diretamente pelo nome do canal.
 
     # Converter datas para string no formato YYYY-MM-DD
     order_date_str = order_date.strftime("%Y-%m-%d")
+    
+    # Cláusula WHERE condicional para o canal de vendas
+    where_channel_clause = ""
+    if sales_channel:
+        where_channel_clause = f"AND ot.SALES_CHANNEL = '{sales_channel}'"
 
     query = f"""
     SELECT 
         FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', MAX(OT.CREATED_AT), 'America/Sao_Paulo') AS Data_Pedido,
         MAX(OT.SHORT_ID) AS N_Pedido, 
+        OT.SALES_CHANNEL AS Canal,
         MAX(OT.TOTAL_ORDERS) AS N_Pedidos_Cliente, 
         STRING_AGG(p.NAME, '/') AS Itens, 
         SUM(BI.Quantity) AS qtd_itens,
@@ -38,13 +41,14 @@ def read_order_performance(order_date: date, sales_channel: str):
     FROM BAG_ITEMS bi 
     INNER JOIN ORDERS_TABLE ot 
         ON ot.id = bi.ORDER_ID 
-    LEFT JOIN PRODUCT p 
+    LEFT JOIN (SELECT P.NAME, P.COST, p.VALID_FROM_DATE, p.VALID_TO_DATE, CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P 
+INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p 
         ON p.name = bi.name 
-       AND p.sales_channel = {sales_channel_id}
-       AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
-    WHERE DATE(ot.CREATED_AT) = '{order_date_str}' 
-      AND ot.SALES_CHANNEL = '{sales_channel}'
-    GROUP BY ot.ID
+        AND p.sales_channel = OT.SALES_CHANNEL
+        AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
+    WHERE DATE(ot.CREATED_AT) = '{order_date_str}'
+        {where_channel_clause}
+    GROUP BY ot.ID, OT.SALES_CHANNEL
     ORDER BY Data_Pedido DESC
     """
 

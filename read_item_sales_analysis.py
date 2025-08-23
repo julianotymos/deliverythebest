@@ -4,16 +4,22 @@ import pandas as pd
 from datetime import date
 
 @st.cache_data(ttl=600)
-def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: str):
+def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: str = None):
     """
     Busca e retorna a análise de vendas de itens por categoria e quantidade,
-    dentro de um período e para um canal de vendas específico.
+    dentro de um período e para um canal de vendas específico (opcional).
     """
     client = get_bigquery_client()
+
+    where_channel = ""
+    if sales_channel:
+        where_channel = f"AND OT.SALES_CHANNEL = '{sales_channel}'"
 
     query = f"""
     SELECT
         BSI.NAME AS Subitem,
+        STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
+
         SUM(BSI.Quantity) AS Quantidade,
         CASE
             WHEN BSI.NAME LIKE '%Açaí%' THEN 'Açaí'
@@ -29,7 +35,7 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
         ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
     WHERE 1=1
         AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
-        AND OT.SALES_CHANNEL = '{sales_channel}'
+        {where_channel}
     GROUP BY
         BSI.NAME
     ORDER BY
