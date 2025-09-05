@@ -30,7 +30,7 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) AS net_item,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / COUNT(1), 2) AS lucro_liquido_medio_item,
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup ,
         ROUND( ((SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) ) * 100 ) ,2 ) AS Margem
     FROM BAG_ITEMS bi 
