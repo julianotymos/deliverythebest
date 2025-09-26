@@ -4,7 +4,7 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_order_performance(order_date: date, sales_channel: str = None):
+def read_order_performance(order_date: date, sales_channel: str = None , customer_type: str = None):
     """
     Retorna métricas detalhadas por pedido (itens, valor, custo, lucro, markup)
     no período informado e para o canal de vendas especificado (opcional).
@@ -23,6 +23,21 @@ def read_order_performance(order_date: date, sales_channel: str = None):
     if sales_channel:
         where_channel_clause = f"AND ot.SALES_CHANNEL = '{sales_channel}'"
 
+    where_customer_clause = ""
+    if customer_type == "Novo":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+        )
+        """
+    elif customer_type == "Recorrente":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+        )
+        """
     query = f"""
     SELECT 
         FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', MAX(OT.CREATED_AT), 'America/Sao_Paulo') AS Data_Pedido,
@@ -48,6 +63,8 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
         AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
     WHERE DATE(ot.CREATED_AT) = '{order_date_str}'
         {where_channel_clause}
+        {where_customer_clause}  
+
     GROUP BY ot.ID, OT.SALES_CHANNEL
     ORDER BY Data_Pedido DESC
     """

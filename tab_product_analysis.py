@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from read_product_performance import read_product_performance
 from read_product import read_product
 # --- Configurações da Página ---
-def tab_product_analysis(start_date: date, end_date: date, sales_channel: str):
+def tab_product_analysis(start_date: date, end_date: date, sales_channel: str , customer_type: str = None):
     """
     Exibe a aba de Performance de Produtos.
     Inclui métricas resumidas, top 5 produtos e tabela completa de produtos.
@@ -11,7 +11,7 @@ def tab_product_analysis(start_date: date, end_date: date, sales_channel: str):
     st.header(f"📦 Performance de Produtos - Canal: {sales_channel}")
 
     # ---- Buscar dados ----
-    product_df_performance = read_product_performance(start_date, end_date, sales_channel)
+    product_df_performance = read_product_performance(start_date, end_date, sales_channel , customer_type = customer_type)
     product_df ,product_df_0  = read_product(start_date=start_date, end_date=end_date, sales_channel=sales_channel)
     #print(product_df)
     product_df_display = product_df.drop(columns=['ID', 'CATEGORY'])

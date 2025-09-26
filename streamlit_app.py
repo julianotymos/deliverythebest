@@ -25,12 +25,15 @@ st.markdown("Visão geral de performance ( iFood e 99food).")
 # --- Barra Lateral para Filtros e Status ---
 st.sidebar.header("🗓️ Período de Análise")
 sales_channels = ["","iFood", "99food"]
+customer_type = ["","Novo", "Recorrente"]
 
 start_date = st.sidebar.date_input("Data Inicial", (datetime.now() - timedelta(days=1)).date())
 end_date = st.sidebar.date_input("Data Final", datetime.now().date())
 
 # ✅ Canal de vendas na barra lateral
 f_sales_channel = st.sidebar.selectbox("Selecione o canal de vendas:", sales_channels)
+
+f_customer_type = st.sidebar.selectbox("Tipo de Cliente:", customer_type)
 
 if start_date > end_date:
     st.sidebar.error("⚠️ Erro: A data inicial não pode ser posterior à data final.")
@@ -40,14 +43,14 @@ else:
 
     # ---- Aba de Resumo de Receita ----
     with tab_revenue:
-        tab_revenue_analysis(start_date, end_date, sales_channel=f_sales_channel)
+        tab_revenue_analysis(start_date, end_date, sales_channel=f_sales_channel , customer_type= f_customer_type)
 
     # ---- Aba de Performance de Produtos ----
     with tab_products:
-        product_df = tab_product_analysis(start_date, end_date, f_sales_channel)
+        product_df = tab_product_analysis(start_date, end_date, f_sales_channel , customer_type= f_customer_type )
         
     with tab_subitem:
-        product_df = tab_subitem_analysis(start_date, end_date, f_sales_channel)
+        product_df = tab_subitem_analysis(start_date, end_date, f_sales_channel , customer_type= f_customer_type)
 
     # --- Status de Processamento na Barra Lateral ---
     st.sidebar.markdown("---")

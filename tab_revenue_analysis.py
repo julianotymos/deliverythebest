@@ -6,7 +6,7 @@ from read_revenue_period import read_revenue_period
 from read_order_performance import read_order_performance
 from read_product_performance import read_product_performance
 
-def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str):
+def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str , customer_type: str = None):
     """
     Exibe o conteúdo da aba "Resumo Geral" do dashboard de vendas,
     incluindo métricas de faturamento, pedidos e produtos.
@@ -14,7 +14,7 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str):
     st.header(f" {sales_channel}")
 
     # ---- CHAMADAS DE DADOS ----
-    revenue_df = read_revenue_period(start_date, end_date, sales_channel)
+    revenue_df = read_revenue_period(start_date, end_date, sales_channel , customer_type = customer_type)
 
     if not revenue_df.empty:
         # ---- TOTAL (última linha somada) ----
@@ -67,7 +67,7 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str):
                 order_date = selected_row["Data"].iloc[0]
 
                 st.subheader(f"Transações de {order_date}")
-                transactions_df = read_order_performance(order_date = order_date , sales_channel=sales_channel)
+                transactions_df = read_order_performance(order_date = order_date , sales_channel=sales_channel , customer_type= customer_type)
                 
                 if not transactions_df.empty:
                     st.dataframe(transactions_df, use_container_width=True , hide_index=True)

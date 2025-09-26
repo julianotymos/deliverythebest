@@ -4,7 +4,7 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_product_performance(start_date: date, end_date: date, sales_channel: str = None):
+def read_product_performance(start_date: date, end_date: date, sales_channel: str = None, customer_type: str = None):
     """
     Retorna métricas de vendas por produto (quantidade, valor, custo, lucro, markup)
     no período informado e para o canal de vendas especificado (opcional).
@@ -20,6 +20,22 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
     where_channel_clause = ""
     if sales_channel:
         where_channel_clause = f"AND ot.SALES_CHANNEL = '{sales_channel}'"
+        
+    where_customer_clause = ""
+    if customer_type == "Novo":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+        )
+        """
+    elif customer_type == "Recorrente":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+        )
+        """
 
     query = f"""
     SELECT 
@@ -44,6 +60,8 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
     WHERE
         DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
         {where_channel_clause}
+        {where_customer_clause}  
+
     GROUP BY p.NAME
     ORDER BY qtd_itens DESC
     """

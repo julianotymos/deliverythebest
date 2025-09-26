@@ -5,7 +5,7 @@ from datetime import date
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def read_revenue_period(start_date: date, end_date: date, sales_channel: str = None):
+def read_revenue_period(start_date: date, end_date: date, sales_channel: str = None, customer_type: str = None):
     """
     Retorna métricas de faturamento, custo, lucro, margem e clientes
     entre as datas informadas (inclusive).
@@ -25,6 +25,22 @@ def read_revenue_period(start_date: date, end_date: date, sales_channel: str = N
     where_channel_clause = ""
     if sales_channel:
         where_channel_clause = f"AND ot.sales_channel = '{sales_channel}'"
+
+    where_customer_clause = ""
+    if customer_type == "Novo":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+        )
+        """
+    elif customer_type == "Recorrente":
+        where_customer_clause = """
+        AND (
+            (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
+            OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+        )
+        """
 
     query = f"""
     SELECT
@@ -76,17 +92,33 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
     LEFT JOIN (
         SELECT DATE(ot.CREATED_AT) AS order_date,
                COUNT(1) AS QTY_PEDIDOS,
-               SUM(CASE WHEN OT.TOTAL_ORDERS = 1 THEN 1 ELSE 0 END) AS NOVOS_CLIENTES,
-               SUM(CASE WHEN OT.TOTAL_ORDERS > 1 THEN 1 ELSE 0 END) AS CLIENTES_RECORRENTES
+               SUM(
+                   CASE 
+                       WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1 THEN 1
+                       WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2 THEN 1
+                       ELSE 0
+                   END
+               ) AS NOVOS_CLIENTES,
+               SUM(
+                   CASE 
+                       WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1 THEN 1
+                       WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2 THEN 1
+                       ELSE 0
+                   END
+               ) AS CLIENTES_RECORRENTES
         FROM ORDERS_TABLE ot
         WHERE DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
         {where_channel_clause} -- Adicionei o filtro aqui
+        {where_customer_clause}  -- <-- agora entra junto com AND
+
         GROUP BY DATE(ot.CREATED_AT)
     ) QOT ON QOT.order_date = DATE(ot.CREATED_AT)
 
     WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED')
       AND DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
       {where_channel_clause} -- E adicionei o filtro aqui também
+      {where_customer_clause}  -- <-- agora entra junto com AND
+
     GROUP BY
         DATE(ot.CREATED_AT),
         QOT.QTY_PEDIDOS,
@@ -118,6 +150,6 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
     
 #start_date = st.date_input("Start Date", value=date(2025, 8, 1))
 #end_date = st.date_input("End Date", value=date(2025, 8, 31))
-#
-#df = read_revenue_period(start_date, end_date , sales_channel='iFood')
+##
+#df = read_revenue_period(start_date, end_date , sales_channel='iFood' , customer_type = 'new')
 #print(df)

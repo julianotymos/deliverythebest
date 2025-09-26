@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import date, timedelta
 from read_item_sales_analysis import read_item_sales_analysis
 # --- Configurações da Página ---
-def tab_subitem_analysis(start_date: date, end_date: date, sales_channel: str):
+def tab_subitem_analysis(start_date: date, end_date: date, sales_channel: str , customer_type: str = None):
     """
     Exibe a aba de Performance de Produtos.
     Inclui métricas resumidas, top 5 produtos e tabela completa de produtos.

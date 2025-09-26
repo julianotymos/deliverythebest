@@ -16,10 +16,11 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
         where_channel = f"AND OT.SALES_CHANNEL = '{sales_channel}'"
 
     query = f"""
+    WITH DadosAgregados AS (
+    -- Esta é a sua query original, que faz a primeira agregação
     SELECT
         BSI.NAME AS Subitem,
         STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
-
         SUM(BSI.Quantity) AS Quantidade,
         CASE
             WHEN BSI.NAME LIKE '%Açaí%' THEN 'Açaí'
@@ -35,18 +36,40 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
         ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
     WHERE 1=1
         AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
+        AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' )
+
         {where_channel}
     GROUP BY
         BSI.NAME
-    ORDER BY
-        CASE
-            WHEN BSI.NAME LIKE '%Açaí%' THEN 1
-            WHEN BSI.NAME LIKE '%Sorvete%' OR BSI.NAME LIKE '%Sorbet%' THEN 2
-            WHEN BSI.NAME LIKE '%Morango%' OR BSI.NAME LIKE '%Banana%' OR BSI.NAME LIKE '%Uva%' OR BSI.NAME LIKE '%Kiwi%' THEN 3
-            ELSE 4
-        END,
-        Quantidade DESC,
-        BSI.NAME ASC
+    )
+-- Agora, selecionamos os dados da CTE e calculamos o percentual relativo
+SELECT
+    Subitem,
+    Canais,
+    Quantidade,
+    Categoria,
+    -- Nova coluna com o cálculo do percentual relativo
+    round((
+        Quantidade * 100.0 / SUM(Quantidade) OVER (
+            PARTITION BY
+                CASE
+                    WHEN Categoria IN ('Açaí', 'Sorvete') THEN 'Grupo Gelados'
+                    ELSE 'Grupo Outros'
+                END
+        )
+    ),2) AS Perc_Relativo_gelados_topping
+FROM
+    DadosAgregados
+ORDER BY
+    -- A ordenação é movida para a consulta final
+    CASE
+        WHEN Categoria = 'Açaí' THEN 1
+        WHEN Categoria = 'Sorvete' THEN 2
+        WHEN Categoria = 'Frutas' THEN 3
+        ELSE 4
+    END,
+    Quantidade DESC,
+    Subitem ASC
     """
 
     try:
