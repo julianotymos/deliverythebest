@@ -36,7 +36,7 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
         ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
     WHERE 1=1
         AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
-        AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' )
+        AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' , 'Agua Mineral C/ Gas 510ml Crystal' )
 
         {where_channel}
     GROUP BY
