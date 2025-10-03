@@ -7,7 +7,7 @@ def tab_subitem_analysis(start_date: date, end_date: date, sales_channel: str , 
     Exibe a aba de Performance de Produtos.
     Inclui métricas resumidas, top 5 produtos e tabela completa de produtos.
     """
-    st.header(f"📦 Performance de Produtos - Canal: {sales_channel}")
+    #st.header(f"📦 Performance de Produtos - Canal: {sales_channel}")
 
     # ---- Buscar dados ----
     sub_item_df = read_item_sales_analysis(start_date=start_date, end_date=end_date, sales_channel=sales_channel)

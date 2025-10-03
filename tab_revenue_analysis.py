@@ -11,7 +11,7 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str , 
     Exibe o conteúdo da aba "Resumo Geral" do dashboard de vendas,
     incluindo métricas de faturamento, pedidos e produtos.
     """
-    st.header(f" {sales_channel}")
+    #st.header(f" {sales_channel}")
 
     # ---- CHAMADAS DE DADOS ----
     revenue_df = read_revenue_period(start_date, end_date, sales_channel , customer_type = customer_type)
@@ -25,22 +25,29 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str , 
 
         with col1:
             st.metric("💰 Faturamento", f"{total_row['Faturamento']:.2f}")
+            st.metric("💰 Ticket Médio", f"{total_row['Faturamento']/total_row['Qtd. Pedidos']:.2f}")
             st.metric("👥 Pedidos", int(total_row['Qtd. Pedidos']))
 
         with col2:
             st.metric("💳 Recebido", f"{total_row['Recebido']:.2f}")
+            st.metric("💳 Recebido Médio", f"{total_row['Recebido']/total_row['Qtd. Pedidos']:.2f}")
             st.metric("📦 Itens Vendidos", int(total_row['Itens Vendidos']))
 
         with col3:
             st.metric("💵 Custo", f"{total_row['Custo']:.2f}")
+            st.metric("💵 Custo Médio", f"{total_row['Custo']/total_row['Qtd. Pedidos']:.2f}")
+            
             st.metric("🆕 Novos Clientes", int(total_row['Novos Clientes']))
 
         with col4:
-            st.metric("🤑 Lucro Líquido", f"{total_row['Lucro Líquido']:.2f}")
+            st.metric("🤑 Lucro ", f"{total_row['Lucro Líquido']:.2f}")
+            st.metric("🤑 Lucro Médio ", f"{total_row['Lucro Líquido']/total_row['Qtd. Pedidos']:.2f}")
+            
             st.metric("🔁 Clientes Recorrentes", int(total_row['Clientes Recorrentes']))
 
         with col5:
             st.metric("📈 Markup (%)",f"{(total_row['Lucro Líquido'] / total_row['Custo'] * 100):.2f}%")
+
         with col6:
             st.metric("📊 Margem (%)",f"{(total_row['Lucro Líquido'] / total_row['Recebido'] * 100):.2f}%")
         

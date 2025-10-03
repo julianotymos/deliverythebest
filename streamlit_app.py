@@ -14,14 +14,10 @@ from tab_subitem_analysis import tab_subitem_analysis
 # --- Início da Aplicação Streamlit ---
 
 st.set_page_config(
-    page_title="Dashboard de Vendas",
+    page_title="Dashboard de Vendas", # Aqui o título será sempre fixo
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-st.title("📊 Performance Delivery")
-st.markdown("Visão geral de performance ( iFood e 99food).")
-
 # --- Barra Lateral para Filtros e Status ---
 st.sidebar.header("🗓️ Período de Análise")
 sales_channels = ["","iFood", "99food"]
@@ -30,9 +26,22 @@ customer_type = ["","Novo", "Recorrente"]
 start_date = st.sidebar.date_input("Data Inicial", (datetime.now() - timedelta(days=1)).date())
 end_date = st.sidebar.date_input("Data Final", datetime.now().date())
 
-# ✅ Canal de vendas na barra lateral
+
+# 1. ✅ Canal de vendas na barra lateral (Obtem a seleção do usuário)
 f_sales_channel = st.sidebar.selectbox("Selecione o canal de vendas:", sales_channels)
 
+# 2. ✅ Lógica para tratar a seleção vazia
+if f_sales_channel == "":
+    # Se nada foi selecionado, use a regra de 'Todos'
+    channel_display_name = "iFood & 99food" 
+else:
+    # Se algo foi selecionado, use o nome selecionado
+    channel_display_name = f_sales_channel
+
+# 3. ✅ Atualiza o título do aplicativo com base na seleção
+st.title(f"📊 Performance Delivery: {channel_display_name}") 
+
+# ... (Restante do código continua a partir daqui)
 f_customer_type = st.sidebar.selectbox("Tipo de Cliente:", customer_type)
 
 if start_date > end_date:
