@@ -47,10 +47,12 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str , 
 
         with col5:
             st.metric("📈 Markup (%)",f"{(total_row['Lucro Líquido'] / total_row['Custo'] * 100):.2f}%")
+            st.metric("         ", "-") 
+            st.metric("🔁 % Clientes Recorrentes", f"{((int(total_row['Clientes Recorrentes'])/(int(total_row['Clientes Recorrentes'])+ int(total_row['Novos Clientes'])))*100):.2f}%")
 
         with col6:
             st.metric("📊 Margem (%)",f"{(total_row['Lucro Líquido'] / total_row['Recebido'] * 100):.2f}%")
-        
+
 
             
         st.markdown("---")
