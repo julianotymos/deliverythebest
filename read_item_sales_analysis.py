@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-@st.cache_data(ttl=600)
+#@st.cache_data(ttl=600)
 def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: str = None):
     """
     Busca e retorna a análise de vendas de itens por categoria e quantidade,

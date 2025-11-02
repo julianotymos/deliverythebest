@@ -3,7 +3,7 @@ import pandas as pd
 from get_bigquery_client import get_bigquery_client
 from datetime import date
 
-@st.cache_data(ttl=600, show_spinner=False)
+#@st.cache_data(ttl=600, show_spinner=False)
 def read_order_performance(order_date: date, sales_channel: str = None , customer_type: str = None):
     """
     Retorna métricas detalhadas por pedido (itens, valor, custo, lucro, markup)

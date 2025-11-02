@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-@st.cache_data(ttl=600)
+#@st.cache_data(ttl=600)
 def read_product(
     product_name: str = None, 
     sales_channel: str = None, 

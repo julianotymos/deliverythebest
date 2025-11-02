@@ -4,7 +4,7 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+#@st.cache_data(ttl=600, show_spinner=False)
 def read_revenue_period(start_date: date, end_date: date, sales_channel: str = None, customer_type: str = None):
     """
     Retorna métricas de faturamento, custo, lucro, margem e clientes

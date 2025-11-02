@@ -4,7 +4,7 @@ from get_bigquery_client import get_bigquery_client
 from datetime import date
 from typing import Optional
 
-@st.cache_data(ttl=600, show_spinner=False)
+#@st.cache_data(ttl=600, show_spinner=False)
 def read_customer_evolution( sales_channel: Optional[str] = None):
     """
     Retorna métricas diárias e acumuladas de Novos e Recorrentes,
@@ -95,5 +95,5 @@ def read_customer_evolution( sales_channel: Optional[str] = None):
         return pd.DataFrame()
 
     
-df = read_customer_evolution(sales_channel = 'iFood')
-print(df)
+#df = read_customer_evolution(sales_channel = 'iFood')
+#print(df)
