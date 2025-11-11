@@ -153,7 +153,11 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
             'items': 'Itens Vendidos',
             'orders_count': 'Qtd. Pedidos',
             'new_customers': 'Novos Clientes',
-            'returning_customers': 'Clientes Recorrentes'
+            'returning_customers': 'Clientes Recorrentes',
+            'TP7': 'TP>7 (%)',
+            'TP6': 'TP>6 (%)',
+            'TP5': 'TP>5 (%)'
+            
         })
         return df
     except Exception as e:
