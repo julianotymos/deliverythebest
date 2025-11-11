@@ -78,7 +78,10 @@ def read_revenue_period(start_date: date, end_date: date, sales_channel: str = N
         COUNT(1) AS items,
         QOT.QTY_PEDIDOS AS orders_count,
         QOT.NOVOS_CLIENTES AS new_customers,
-        QOT.CLIENTES_RECORRENTES AS returning_customers
+        QOT.CLIENTES_RECORRENTES AS returning_customers ,
+        ROUND( ANY_VALUE( QOT.TP7)/QOT.QTY_PEDIDOS * 100 ,2) AS TP7,
+       ROUND( ANY_VALUE(  QOT.TP6)/QOT.QTY_PEDIDOS * 100,2) AS TP6,
+       ROUND( ANY_VALUE( QOT.TP5) /QOT.QTY_PEDIDOS * 100 ,2)AS TP5
 
     FROM BAG_ITEMS bi
     INNER JOIN ORDERS_TABLE ot ON ot.id = bi.ORDER_ID
@@ -105,7 +108,16 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
                        WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2 THEN 1
                        ELSE 0
                    END
-               ) AS CLIENTES_RECORRENTES
+               ) AS CLIENTES_RECORRENTES ,
+                       SUM(CASE WHEN ot.PREPARATION_TIME > 7
+                 THEN 1
+                 ELSE 0 END ) AS TP7 ,
+                 SUM(CASE WHEN ot.PREPARATION_TIME > 6
+                 THEN 1
+                 ELSE 0 END ) AS TP6 ,
+                 SUM(CASE WHEN ot.PREPARATION_TIME > 5
+                 THEN 1
+                 ELSE 0 END ) AS TP5
         FROM ORDERS_TABLE ot
         WHERE DATE(ot.CREATED_AT, "America/Sao_Paulo") BETWEEN '{start_date_str}' AND '{end_date_str}'
         {where_channel_clause} -- Adicionei o filtro aqui

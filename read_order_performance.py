@@ -52,6 +52,7 @@ def read_order_performance(order_date: date, sales_channel: str = None , custome
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup,
+        ANY_VALUE(ot.preparation_time) as preparation_time ,
         ot.ID AS id
     FROM BAG_ITEMS bi 
     INNER JOIN ORDERS_TABLE ot 
@@ -84,7 +85,8 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
             "lucro_liquido": "Lucro Líquido",
             "lucro_liquido_medio_item": "Lucro Médio por Item",
             "Markup": "Markup (%)",
-            "id": "ID Interno"
+            "preparation_time" : "Tempo de Preparo",
+            "id": "ID Interno" ,
         })
         return df
     except Exception as e:
@@ -93,8 +95,5 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
     
 #order_date = st.date_input("Start Date", value=date(2025, 8, 21))
 #end_date = st.date_input("End Date", value=date(2025, 8, 31))
-
-
-
 #df = read_order_performance(order_date = order_date , sales_channel='99food')
 #print(df)
