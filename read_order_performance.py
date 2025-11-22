@@ -47,6 +47,11 @@ def read_order_performance(order_date: date, sales_channel: str = None , custome
         STRING_AGG(p.NAME, '/') AS Itens, 
         SUM(BI.Quantity) AS qtd_itens,
         ROUND(SUM(bi.sub_total_value), 2) AS total_venda,
+        ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) AS net_item,
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup,
         ANY_VALUE(ot.preparation_time) as preparation_time ,
         ot.ID AS id
     FROM BAG_ITEMS bi 
@@ -75,6 +80,11 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
             "Itens": "Itens do Pedido",
             "qtd_itens": "Qtd. Itens",
             "total_venda": "Faturamento",
+            "cost": "Custo",
+            "net_item": "Receita Líquida",
+            "lucro_liquido": "Lucro Líquido",
+            "lucro_liquido_medio_item": "Lucro Médio por Item",
+            "Markup": "Markup (%)",
             "preparation_time" : "Tempo de Preparo",
             "id": "ID Interno" ,
         })

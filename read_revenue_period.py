@@ -47,13 +47,33 @@ def read_revenue_period(start_date: date, end_date: date, sales_channel: str = N
         DATE(ot.CREATED_AT, "America/Sao_Paulo") AS order_date,
         STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
         SUM(bi.sub_total_value) AS revenue,
+        SUM(p.cost * bi.quantity) AS cost,
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END),2) AS received,
 
+        ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)), 2) AS net_profit,
 
+        ROUND( (ROUND(SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)), 2)
+            /SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END) *100 ) , 2 ) AS margin,
 
-
-
-
-
+        ROUND(((SUM((bi.sub_total_value / ot.total_bag_detail) *
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END
+            - (p.cost * bi.quantity)) / SUM(p.cost * bi.quantity)) * 100),2) AS markup,
 
         COUNT(1) AS items,
         QOT.QTY_PEDIDOS AS orders_count,
@@ -126,6 +146,10 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
             'order_date': 'Data',
             'revenue': 'Faturamento',
             'cost': 'Custo',
+            'received': 'Recebido',
+            'net_profit': 'Lucro Líquido',
+            'margin': 'Margem (%)',
+            'markup': 'Markup (%)',
             'items': 'Itens Vendidos',
             'orders_count': 'Qtd. Pedidos',
             'new_customers': 'Novos Clientes',
@@ -145,4 +169,3 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
 ##
 #df = read_revenue_period(start_date, end_date , sales_channel='iFood' , customer_type = 'new')
 #print(df)
-#sda

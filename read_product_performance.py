@@ -43,6 +43,12 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
         SUM(BI.Quantity) AS qtd_itens,
         ROUND(SUM(bi.sub_total_value), 2) AS total_venda,
+        ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) AS net_item,
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup ,
+        ROUND( ((SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) ) * 100 ) ,2 ) AS Margem
     FROM BAG_ITEMS bi 
     INNER JOIN ORDERS_TABLE ot 
         ON ot.id = bi.ORDER_ID 
@@ -67,6 +73,12 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
             "NAME": "Produto",
             "qtd_itens": "Quantidade",
             "total_venda": "Faturamento",
+            "cost": "Custo",
+            "net_item": "Receita Líquida",
+            "lucro_liquido": "Lucro Líquido",
+            "lucro_liquido_medio_item": "Lucro Médio por Item",
+            "Markup": "Markup (%)",
+            "Margem": "Margem (%)",
         })
         return df
     except Exception as e:
