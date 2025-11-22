@@ -21,37 +21,25 @@ def tab_revenue_analysis(start_date: date, end_date: date, sales_channel: str , 
         total_row = revenue_df.sum(numeric_only=True)
 
         # Criar 8 colunas
-        col1, col2, col3, col4, col5, col6,  = st.columns(6)
+        col1, col2, col3, col4  = st.columns(4)
 
         with col1:
             st.metric("💰 Faturamento", f"{total_row['Faturamento']:.2f}")
-            st.metric("💰 Ticket Médio", f"{total_row['Faturamento']/total_row['Qtd. Pedidos']:.2f}")
-            st.metric("👥 Pedidos", int(total_row['Qtd. Pedidos']))
-
-        with col2:
-            st.metric("💳 Recebido", f"{total_row['Recebido']:.2f}")
-            st.metric("💳 Recebido Médio", f"{total_row['Recebido']/total_row['Qtd. Pedidos']:.2f}")
-            st.metric("📦 Itens Vendidos", int(total_row['Itens Vendidos']))
-
-        with col3:
-            st.metric("💵 Custo", f"{total_row['Custo']:.2f}")
-            st.metric("💵 Custo Médio", f"{total_row['Custo']/total_row['Qtd. Pedidos']:.2f}")
-            
             st.metric("🆕 Novos Clientes", int(total_row['Novos Clientes']))
 
-        with col4:
-            st.metric("🤑 Lucro ", f"{total_row['Lucro Líquido']:.2f}")
-            st.metric("🤑 Lucro Médio ", f"{total_row['Lucro Líquido']/total_row['Qtd. Pedidos']:.2f}")
-            
+        with col2:
+            st.metric("💰 Ticket Médio", f"{total_row['Faturamento']/total_row['Qtd. Pedidos']:.2f}")
             st.metric("🔁 Clientes Recorrentes", int(total_row['Clientes Recorrentes']))
 
-        with col5:
-            st.metric("📈 Markup (%)",f"{(total_row['Lucro Líquido'] / total_row['Custo'] * 100):.2f}%")
-            st.metric("         ", "-") 
+
+        with col3:
+            st.metric("👥 Pedidos", int(total_row['Qtd. Pedidos']))
             st.metric("🔁 % Clientes Recorrentes", f"{((int(total_row['Clientes Recorrentes'])/(int(total_row['Clientes Recorrentes'])+ int(total_row['Novos Clientes'])))*100):.2f}%")
 
-        with col6:
-            st.metric("📊 Margem (%)",f"{(total_row['Lucro Líquido'] / total_row['Recebido'] * 100):.2f}%")
+
+        with col4:
+            st.metric("📦 Itens Vendidos", int(total_row['Itens Vendidos']))
+            
 
 
             
