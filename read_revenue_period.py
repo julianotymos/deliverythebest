@@ -169,3 +169,4 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
 ##
 #df = read_revenue_period(start_date, end_date , sales_channel='iFood' , customer_type = 'new')
 #print(df)
+#sda
