@@ -29,6 +29,7 @@ def read_order_performance(order_date: date, sales_channel: str = None , custome
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS = 1 )
         )
         """
     elif customer_type == "Recorrente":
@@ -36,6 +37,7 @@ def read_order_performance(order_date: date, sales_channel: str = None , custome
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS > 1 )
         )
         """
     query = f"""

@@ -32,6 +32,7 @@ def read_revenue_period(start_date: date, end_date: date, sales_channel: str = N
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS = 1)
         )
         """
     elif customer_type == "Recorrente":
@@ -39,6 +40,7 @@ def read_revenue_period(start_date: date, end_date: date, sales_channel: str = N
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS > 1 )
         )
         """
 
@@ -98,6 +100,8 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
                SUM(
                    CASE 
                        WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1 THEN 1
+                       WHEN ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS = 1 THEN 1
+                       
                        WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2 THEN 1
                        ELSE 0
                    END
@@ -105,6 +109,7 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
                SUM(
                    CASE 
                        WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1 THEN 1
+                       WHEN ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS > 1 THEN 1
                        WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2 THEN 1
                        ELSE 0
                    END

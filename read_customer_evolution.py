@@ -22,7 +22,7 @@ def read_customer_evolution( sales_channel: Optional[str] = None):
 
     # Cláusula WHERE condicional para o canal de vendas
     where_channel_clause = ""
-    if sales_channel and sales_channel != 'iFood - 99food': # Mantendo o filtro se for um canal específico
+    if sales_channel and sales_channel != 'iFood - 99food - keeta': # Mantendo o filtro se for um canal específico
         where_channel_clause = f"AND ot.SALES_CHANNEL = '{sales_channel}'"
 
     query = f"""
@@ -34,6 +34,8 @@ def read_customer_evolution( sales_channel: Optional[str] = None):
             SUM(
                 CASE 
                     WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1 THEN 1
+                    WHEN ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS = 1 THEN 1
+
                     WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2 THEN 1
                     ELSE 0
                 END
@@ -41,6 +43,7 @@ def read_customer_evolution( sales_channel: Optional[str] = None):
             SUM(
                 CASE 
                     WHEN ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1 THEN 1
+                    WHEN ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS > 1 THEN 1
                     WHEN ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2 THEN 1
                     ELSE 0
                 END

@@ -27,6 +27,7 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS = 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS <= 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS = 1 )
         )
         """
     elif customer_type == "Recorrente":
@@ -34,6 +35,7 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         AND (
             (ot.SALES_CHANNEL = 'iFood' AND ot.TOTAL_ORDERS > 1)
             OR (ot.SALES_CHANNEL = '99food' AND ot.TOTAL_ORDERS > 2)
+            OR (ot.SALES_CHANNEL = 'keeta' AND ot.TOTAL_ORDERS > 1 )
         )
         """
 

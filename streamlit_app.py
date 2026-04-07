@@ -20,7 +20,7 @@ st.set_page_config(
 )
 # --- Barra Lateral para Filtros e Status ---
 st.sidebar.header("🗓️ Período de Análise")
-sales_channels = ["","iFood", "99food"]
+sales_channels = ["","iFood", "99food","keeta"]
 customer_type = ["","Novo", "Recorrente"]
 
 start_date = st.sidebar.date_input("Data Inicial", (datetime.now() - timedelta(days=1)).date())
@@ -33,7 +33,7 @@ f_sales_channel = st.sidebar.selectbox("Selecione o canal de vendas:", sales_cha
 # 2. ✅ Lógica para tratar a seleção vazia
 if f_sales_channel == "":
     # Se nada foi selecionado, use a regra de 'Todos'
-    channel_display_name = "iFood & 99food" 
+    channel_display_name = "iFood & 99food & Keeta" 
 else:
     # Se algo foi selecionado, use o nome selecionado
     channel_display_name = f_sales_channel
