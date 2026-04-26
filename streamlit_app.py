@@ -10,6 +10,7 @@ from typing import List
 from tab_revenue_analysis import tab_revenue_analysis  # <-- substitui tab_sales_total
 from tab_product_analysis import tab_product_analysis  # <-- substitui tab_sales_total
 from tab_subitem_analysis import tab_subitem_analysis
+from tab_product_management import tab_product_management
 
 # --- Início da Aplicação Streamlit ---
 
@@ -48,7 +49,7 @@ if start_date > end_date:
     st.sidebar.error("⚠️ Erro: A data inicial não pode ser posterior à data final.")
 else:
     # --- Criação das Abas ---
-    tab_revenue, tab_products , tab_subitem = st.tabs(["Performance Vendas", "Performance de Produtos", "Preferencias Cliente"])
+    tab_revenue, tab_products, tab_subitem, tab_manage = st.tabs(["Performance Vendas", "Performance de Produtos", "Preferencias Cliente", "Gestão de Produtos"])
 
     # ---- Aba de Resumo de Receita ----
     with tab_revenue:
@@ -60,6 +61,9 @@ else:
         
     with tab_subitem:
         product_df = tab_subitem_analysis(start_date, end_date, f_sales_channel , customer_type= f_customer_type)
+
+    with tab_manage:
+        tab_product_management()
 
     # --- Status de Processamento na Barra Lateral ---
     st.sidebar.markdown("---")
