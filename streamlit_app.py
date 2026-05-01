@@ -63,7 +63,7 @@ else:
         product_df = tab_subitem_analysis(start_date, end_date, f_sales_channel , customer_type= f_customer_type)
 
     with tab_manage:
-        tab_product_management()
+        tab_product_management(start_date, end_date)
 
     # --- Status de Processamento na Barra Lateral ---
     st.sidebar.markdown("---")

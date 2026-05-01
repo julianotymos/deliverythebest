@@ -2,16 +2,17 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from manage_products import (
-    list_all_products_detailed, 
-    check_product_overlap, 
-    insert_product, 
+    list_all_products_detailed,
+    check_product_overlap,
+    insert_product,
     update_product,
     delete_product,
     get_channels,
     get_status_options
 )
+from read_product_inconsistencies import read_product_inconsistencies, read_product_overlap_inconsistencies
 
-def tab_product_management():
+def tab_product_management(start_date=None, end_date=None):
     st.header("📦 Gestão de Produtos e Vigências")
     
     # 1. Preparação de Dados Comuns
@@ -22,7 +23,7 @@ def tab_product_management():
     category_options = ["Pronto", "A montar"]
 
     # Criar abas principais
-    subtab_list, subtab_create = st.tabs(["🔍 Consultar e Gerenciar", "➕ Novo Cadastro"])
+    subtab_list, subtab_create, subtab_inconsistencies = st.tabs(["🔍 Consultar e Gerenciar", "➕ Novo Cadastro", "⚠️ Inconsistências"])
     
     # --- ABA 1: CONSULTA E EDIÇÃO ---
     with subtab_list:
@@ -92,8 +93,8 @@ def tab_product_management():
                 
                 with col2:
                     e_cost = st.number_input("Custo", min_value=0.0, format="%.2f", value=float(selected_data['Custo']))
-                    e_start = st.date_input("Início Vigência", value=pd.to_datetime(selected_data['Vigencia_Inicio']).date())
-                    e_end = st.date_input("Fim Vigência", value=pd.to_datetime(selected_data['Vigencia_Fim']).date())
+                    e_start = st.date_input("Início Vigência", value=pd.to_datetime(selected_data['Vigencia_Inicio']).date(), min_value=date(2000, 1, 1), max_value=date(2199, 12, 31))
+                    e_end = st.date_input("Fim Vigência", value=pd.to_datetime(selected_data['Vigencia_Fim']).date(), min_value=date(2000, 1, 1), max_value=date(2199, 12, 31))
 
                 btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
                 with btn_col1:
@@ -136,8 +137,8 @@ def tab_product_management():
             
             with col2:
                 n_cost = st.number_input("Custo de Matéria Prima", min_value=0.0, format="%.2f")
-                n_start = st.date_input("Início da Vigência", value=date.today())
-                n_end = st.date_input("Fim da Vigência", value=date(2099, 12, 31))
+                n_start = st.date_input("Início da Vigência", value=date.today(), min_value=date(2000, 1, 1), max_value=date(2199, 12, 31))
+                n_end = st.date_input("Fim da Vigência", value=date(2099, 12, 31), min_value=date(2000, 1, 1), max_value=date(2199, 12, 31))
             
             if st.form_submit_button("Salvar Novo Produto", type="primary"):
                 if not n_name:
@@ -149,3 +150,68 @@ def tab_product_management():
                             st.rerun()
                     else:
                         st.error("⚠️ Já existe este produto cadastrado com vigência para este período.")
+
+    # --- ABA 3: INCONSISTÊNCIAS ---
+    with subtab_inconsistencies:
+
+        # --- Seção 1: Produtos sem cadastro válido ---
+        st.subheader("⚠️ Produtos Vendidos Sem Cadastro Válido")
+        st.caption("Produtos que apareceram em pedidos no período selecionado, mas não possuem cadastro ativo (nome + canal + vigência) correspondente.")
+
+        if start_date is None or end_date is None:
+            st.warning("Selecione um período na barra lateral para visualizar as inconsistências.")
+        else:
+            df_inc = read_product_inconsistencies(start_date, end_date)
+
+            if df_inc.empty:
+                st.success("✅ Nenhuma inconsistência encontrada no período selecionado.")
+            else:
+                col_info1, col_info2, col_info3 = st.columns(3)
+                with col_info1:
+                    st.metric("Produtos sem cadastro", df_inc["Produto"].nunique())
+                with col_info2:
+                    st.metric("Total de itens vendidos", int(df_inc["Qtd Itens"].sum()))
+                with col_info3:
+                    st.metric("Total faturado (R$)", f"R$ {df_inc['Total Vendido (R$)'].sum():,.2f}")
+
+                st.dataframe(
+                    df_inc,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Total Vendido (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                        "Primeira Venda Sem Cadastro": st.column_config.DateColumn("Primeira Venda"),
+                        "Última Venda Sem Cadastro": st.column_config.DateColumn("Última Venda"),
+                    }
+                )
+
+        st.divider()
+
+        # --- Seção 2: Vigências sobrepostas no cadastro ---
+        st.subheader("🔁 Cadastros com Vigências Sobrepostas")
+        st.caption("Pares de cadastros do mesmo produto e canal com períodos de vigência que se sobrepõem.")
+
+        df_ov = read_product_overlap_inconsistencies()
+
+        if df_ov.empty:
+            st.success("✅ Nenhuma sobreposição de vigência encontrada no cadastro.")
+        else:
+            col_ov1, col_ov2 = st.columns(2)
+            with col_ov1:
+                st.metric("Produtos com sobreposição", df_ov["Produto"].nunique())
+            with col_ov2:
+                st.metric("Pares sobrepostos", len(df_ov))
+
+            st.dataframe(
+                df_ov,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Custo 1 (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                    "Custo 2 (R$)": st.column_config.NumberColumn(format="R$ %.2f"),
+                    "Início Vigência 1": st.column_config.DateColumn("Início 1"),
+                    "Fim Vigência 1": st.column_config.DateColumn("Fim 1"),
+                    "Início Vigência 2": st.column_config.DateColumn("Início 2"),
+                    "Fim Vigência 2": st.column_config.DateColumn("Fim 2"),
+                }
+            )
