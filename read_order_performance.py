@@ -64,9 +64,10 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
         ON p.name = bi.name 
         AND p.sales_channel = OT.SALES_CHANNEL
         AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
-    WHERE DATE(ot.CREATED_AT) = '{order_date_str}'
+    WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED', 'CONFIRMED')
+        AND DATE(ot.CREATED_AT) = '{order_date_str}'
         {where_channel_clause}
-        {where_customer_clause}  
+        {where_customer_clause}
 
     GROUP BY ot.ID, OT.SALES_CHANNEL
     ORDER BY Data_Pedido DESC

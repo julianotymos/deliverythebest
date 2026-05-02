@@ -124,14 +124,15 @@ INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
                  THEN 1
                  ELSE 0 END ) AS TP5
         FROM ORDERS_TABLE ot
-        WHERE DATE(ot.CREATED_AT, "America/Sao_Paulo") BETWEEN '{start_date_str}' AND '{end_date_str}'
+        WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED', 'CONFIRMED')
+          AND DATE(ot.CREATED_AT, "America/Sao_Paulo") BETWEEN '{start_date_str}' AND '{end_date_str}'
         {where_channel_clause} -- Adicionei o filtro aqui
         {where_customer_clause}  -- <-- agora entra junto com AND
 
         GROUP BY DATE(ot.CREATED_AT, "America/Sao_Paulo")
     ) QOT ON QOT.order_date = DATE(ot.CREATED_AT, "America/Sao_Paulo")
 
-    WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED')
+    WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED', 'CONFIRMED')
       AND DATE(ot.CREATED_AT, "America/Sao_Paulo") BETWEEN '{start_date_str}' AND '{end_date_str}'
       {where_channel_clause} -- E adicionei o filtro aqui também
       {where_customer_clause}  -- <-- agora entra junto com AND
