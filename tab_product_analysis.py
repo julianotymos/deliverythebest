@@ -17,7 +17,13 @@ def tab_product_analysis(start_date: date, end_date: date, sales_channel: str , 
     product_df_display = product_df.drop(columns=['ID', 'CATEGORY'])
 
     if not product_df_performance.empty:
-        
+
+        # ---- Filtro por nome de produto ----
+        search_product = st.text_input("Filtrar por produto", placeholder="Digite o nome do produto...")
+        if search_product:
+            product_df_performance = product_df_performance[
+                product_df_performance["Produto"].str.contains(search_product, case=False, na=False)
+            ]
 
         # ---- Tabela completa de produtos ----
         st.subheader("Resultado por Produto")

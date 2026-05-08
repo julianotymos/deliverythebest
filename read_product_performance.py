@@ -40,31 +40,43 @@ def read_product_performance(start_date: date, end_date: date, sales_channel: st
         """
 
     query = f"""
-    SELECT 
-        p.NAME,
+    SELECT
+        CASE
+            WHEN paid_subs.paid_subitems IS NOT NULL
+            THEN CONCAT(p.NAME, ' / ', paid_subs.paid_subitems)
+            ELSE p.NAME
+        END AS NAME,
         STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
         SUM(BI.Quantity) AS qtd_itens,
         ROUND(SUM(bi.sub_total_value), 2) AS total_venda,
-        ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
+        ROUND(SUM(p.cost * BI.Quantity), 2) AS cost,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) AS net_item,
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
+        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
         ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup ,
         ROUND( ((SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) ) * 100 ) ,2 ) AS Margem
-    FROM BAG_ITEMS bi 
-    INNER JOIN ORDERS_TABLE ot 
-        ON ot.id = bi.ORDER_ID 
-    LEFT JOIN (SELECT P.NAME ,P.COST, p.VALID_FROM_DATE , p.VALID_TO_DATE , CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P 
-INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p 
-        ON p.name = bi.name 
+    FROM BAG_ITEMS bi
+    INNER JOIN ORDERS_TABLE ot
+        ON ot.id = bi.ORDER_ID
+    LEFT JOIN (SELECT P.NAME ,P.COST, p.VALID_FROM_DATE , p.VALID_TO_DATE , CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P
+INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p
+        ON p.name = bi.name
         AND p.sales_channel = OT.SALES_CHANNEL
         AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
+    LEFT JOIN (
+        SELECT
+            BAG_ITEMS_ID,
+            STRING_AGG(NAME, ', ' ORDER BY NAME) AS paid_subitems
+        FROM BAG_SUB_ITEMS
+        WHERE TOTAL_EFFECTIVE_UNIT_PRICE_VALUE > 0
+        GROUP BY BAG_ITEMS_ID
+    ) paid_subs ON paid_subs.BAG_ITEMS_ID = bi.ID
     WHERE
         DATE(ot.CREATED_AT) BETWEEN '{start_date_str}' AND '{end_date_str}'
         {where_channel_clause}
-        {where_customer_clause}  
+        {where_customer_clause}
 
-    GROUP BY p.NAME
+    GROUP BY NAME
     ORDER BY qtd_itens DESC
     """
 

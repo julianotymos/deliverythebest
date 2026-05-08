@@ -16,31 +16,38 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
         where_channel = f"AND OT.SALES_CHANNEL = '{sales_channel}'"
 
     query = f"""
-    WITH DadosAgregados AS (
-    -- Esta é a sua query original, que faz a primeira agregação
-    SELECT
-        BSI.NAME AS Subitem,
-        STRING_AGG(DISTINCT OT.SALES_CHANNEL, ', ' ORDER BY OT.SALES_CHANNEL) AS Canais,
-        SUM(BSI.Quantity) AS Quantidade,
-        CASE
-            WHEN BSI.NAME LIKE '%Açaí%' THEN 'Açaí'
-            WHEN BSI.NAME LIKE '%Sorvete%' OR BSI.NAME LIKE '%Sorbet%' THEN 'Sorvete'
-            WHEN BSI.NAME LIKE '%Morango%' OR BSI.NAME LIKE '%Banana%' OR BSI.NAME LIKE '%Uva%' OR BSI.NAME LIKE '%Kiwi%' THEN 'Frutas'
-            ELSE 'Outros'
-        END AS Categoria
-    FROM
-        BAG_SUB_ITEMS BSI
-    INNER JOIN
-        BAG_ITEMS BI ON BI.ID = BSI.BAG_ITEMS_ID
-    INNER JOIN
-        ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
-    WHERE 1=1
-        AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
-        AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' , 'Agua Mineral C/ Gas 510ml Crystal','Copo de 300ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','Copo de 500ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','300ml Açaí ou Sorvete + 3 Adicionais Grátis' , '500ml Açaí ou Sorvete + 3 Adicionais Grátis' )
-
-        {where_channel}
-    GROUP BY
-        BSI.NAME
+    WITH NomesNormalizados AS (
+        SELECT
+            CASE
+                WHEN BSI.NAME IN ('Uva', 'Uva sem semente', 'Uva Sem Semente') THEN 'Uva'
+                ELSE BSI.NAME
+            END AS NAME,
+            BSI.Quantity,
+            OT.SALES_CHANNEL
+        FROM
+            BAG_SUB_ITEMS BSI
+        INNER JOIN
+            BAG_ITEMS BI ON BI.ID = BSI.BAG_ITEMS_ID
+        INNER JOIN
+            ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
+        WHERE 1=1
+            AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
+            AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' , 'Agua Mineral C/ Gas 510ml Crystal','Copo de 300ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','Copo de 500ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','300ml Açaí ou Sorvete + 3 Adicionais Grátis' , '500ml Açaí ou Sorvete + 3 Adicionais Grátis' , 'Ao Leite' , '300ml' , '500ml' , 'Whey Protein +Mu (12g)' )
+            {where_channel}
+    ),
+    DadosAgregados AS (
+        SELECT
+            NAME AS Subitem,
+            STRING_AGG(DISTINCT SALES_CHANNEL, ', ' ORDER BY SALES_CHANNEL) AS Canais,
+            SUM(Quantity) AS Quantidade,
+            CASE
+                WHEN NAME LIKE '%Açaí%' THEN 'Açaí'
+                WHEN NAME LIKE '%Sorvete%' OR NAME LIKE '%Sorbet%' THEN 'Sorvete'
+                WHEN NAME LIKE '%Morango%' OR NAME LIKE '%Banana%' OR NAME LIKE '%Uva%' OR NAME LIKE '%Kiwi%' OR NAME LIKE '%Manga%' THEN 'Frutas'
+                ELSE 'Outros'
+            END AS Categoria
+        FROM NomesNormalizados
+        GROUP BY NAME
     )
 -- Agora, selecionamos os dados da CTE e calculamos o percentual relativo
 SELECT
