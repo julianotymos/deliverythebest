@@ -30,9 +30,10 @@ def read_item_sales_analysis(start_date: date, end_date: date, sales_channel: st
             BAG_ITEMS BI ON BI.ID = BSI.BAG_ITEMS_ID
         INNER JOIN
             ORDERS_TABLE OT ON OT.ID = BI.ORDER_ID
+        LEFT JOIN SUBITEM_EXCLUSION se ON se.NAME = BSI.NAME
         WHERE 1=1
             AND DATE(OT.CREATED_AT) BETWEEN '{start_date.strftime('%Y-%m-%d')}' AND '{end_date.strftime('%Y-%m-%d')}'
-            AND BSI.NAME NOT IN ('Colher','Agua Crystal 500ml' , 'Água Crystal com Gás 500ml'  , 'Coca-Cola Original 350ml' , 'Água Crystal Sem Gás 500ml' , 'Coca Cola Zero Lata 350ml' , 'Agua Mineral C/ Gas 510ml Crystal','Copo de 300ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','Copo de 500ml! Açaí e/ou Sorvete + 3 Adicionais Grátis','300ml Açaí ou Sorvete + 3 Adicionais Grátis' , '500ml Açaí ou Sorvete + 3 Adicionais Grátis' , 'Ao Leite' , '300ml' , '500ml' , 'Whey Protein +Mu (12g)' )
+            AND se.ID IS NULL
             {where_channel}
     ),
     DadosAgregados AS (

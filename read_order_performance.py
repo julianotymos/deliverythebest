@@ -41,35 +41,77 @@ def read_order_performance(order_date: date, sales_channel: str = None , custome
         )
         """
     query = f"""
-    SELECT 
-        FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', MAX(OT.CREATED_AT), 'America/Sao_Paulo') AS Data_Pedido,
-        MAX(OT.SHORT_ID) AS N_Pedido, 
-        OT.SALES_CHANNEL AS Canal,
-        MAX(OT.TOTAL_ORDERS) AS N_Pedidos_Cliente, 
-        STRING_AGG(p.NAME, '/') AS Itens, 
-        SUM(BI.Quantity) AS qtd_itens,
-        ROUND(SUM(bi.sub_total_value), 2) AS total_venda,
-        ROUND(SUM(p.cost * BI.Quantity), 2) AS cost, 
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value), 2) AS net_item,
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)), 2) AS lucro_liquido, 
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(BI.Quantity), 2) AS lucro_liquido_medio_item,
-        ROUND(SUM((bi.sub_total_value/ot.total_bag_detail) * ot.net_value - (p.cost * BI.Quantity)) / SUM(p.cost * BI.Quantity) * 100, 2) AS Markup,
-        ANY_VALUE(ot.preparation_time) as preparation_time ,
-        ot.ID AS id
-    FROM BAG_ITEMS bi 
-    INNER JOIN ORDERS_TABLE ot 
-        ON ot.id = bi.ORDER_ID 
-    LEFT JOIN (SELECT P.NAME, P.COST, p.VALID_FROM_DATE, p.VALID_TO_DATE, CH.SALES_CHANNEL_ID AS SALES_CHANNEL FROM PRODUCT P 
-INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL) p 
-        ON p.name = bi.name 
-        AND p.sales_channel = OT.SALES_CHANNEL
-        AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
-    WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED', 'CONFIRMED')
-        AND DATE(ot.CREATED_AT) = '{order_date_str}'
-        {where_channel_clause}
-        {where_customer_clause}
-
-    GROUP BY ot.ID, OT.SALES_CHANNEL
+    WITH base_data AS (
+        SELECT
+            ot.ID                   AS order_id,
+            ot.SHORT_ID,
+            ot.SALES_CHANNEL,
+            ot.TOTAL_ORDERS,
+            ot.CREATED_AT,
+            ot.PREPARATION_TIME,
+            ot.TOTAL_BAG_DETAIL,
+            p.NAME                  AS product_name,
+            bi.QUANTITY,
+            bi.sub_total_value + CASE
+                WHEN ot.SALES_CHANNEL = '99food' THEN COALESCE(paid_subs.paid_subitems_value, 0)
+                ELSE 0
+            END AS item_revenue,
+            CASE WHEN ot.FEE_TRANSACTION_PAYMENT IS NULL
+                 THEN ot.total_bag_detail - 3
+                 ELSE ot.net_value END AS order_net_value,
+            p.cost * bi.QUANTITY + COALESCE(acc_cost.accompaniment_cost, 0) AS item_cost
+        FROM BAG_ITEMS bi
+        INNER JOIN ORDERS_TABLE ot ON ot.ID = bi.ORDER_ID
+        LEFT JOIN (
+            SELECT P.NAME, P.COST, P.VALID_FROM_DATE, P.VALID_TO_DATE, CH.SALES_CHANNEL_ID AS SALES_CHANNEL
+            FROM PRODUCT P
+            INNER JOIN SALES_CHANNEL CH ON CH.ID = P.SALES_CHANNEL
+        ) p ON p.name = bi.name
+            AND p.sales_channel = ot.SALES_CHANNEL
+            AND DATE(ot.CREATED_AT) BETWEEN p.VALID_FROM_DATE AND p.VALID_TO_DATE
+        LEFT JOIN (
+            SELECT
+                BAG_ITEMS_ID,
+                SUM(TOTAL_EFFECTIVE_UNIT_PRICE_VALUE) AS paid_subitems_value
+            FROM BAG_SUB_ITEMS
+            WHERE TOTAL_EFFECTIVE_UNIT_PRICE_VALUE > 0
+            GROUP BY BAG_ITEMS_ID
+        ) paid_subs ON paid_subs.BAG_ITEMS_ID = bi.ID
+        LEFT JOIN (
+            SELECT
+                bsi.BAG_ITEMS_ID,
+                SUM(bsi.QUANTITY * a.COST) AS accompaniment_cost
+            FROM BAG_SUB_ITEMS bsi
+            INNER JOIN BAG_ITEMS bi2 ON bi2.ID = bsi.BAG_ITEMS_ID
+            INNER JOIN ORDERS_TABLE ot2 ON ot2.ID = bi2.ORDER_ID
+            INNER JOIN ACCOMPANIMENT a
+                ON a.NAME = bsi.NAME
+                AND DATE(ot2.CREATED_AT) BETWEEN a.VALID_FROM_DATE AND a.VALID_TO_DATE
+            WHERE DATE(ot2.CREATED_AT) = '{order_date_str}'
+            GROUP BY bsi.BAG_ITEMS_ID
+        ) acc_cost ON acc_cost.BAG_ITEMS_ID = bi.ID
+        WHERE ot.current_status IN ('CONCLUDED', 'PARTIALLY_CANCELLED', 'CONFIRMED')
+          AND DATE(ot.CREATED_AT) = '{order_date_str}'
+          {where_channel_clause}
+          {where_customer_clause}
+    )
+    SELECT
+        FORMAT_TIMESTAMP('%d/%m/%Y %H:%M', MAX(CREATED_AT), 'America/Sao_Paulo') AS Data_Pedido,
+        MAX(SHORT_ID)                                                              AS N_Pedido,
+        SALES_CHANNEL                                                              AS Canal,
+        MAX(TOTAL_ORDERS)                                                          AS N_Pedidos_Cliente,
+        STRING_AGG(product_name, ' / ')                                            AS Itens,
+        SUM(QUANTITY)                                                              AS qtd_itens,
+        ROUND(SUM(item_revenue), 2)                                                AS total_venda,
+        ROUND(SUM(item_cost), 2)                                                   AS cost,
+        ROUND(SUM((item_revenue / TOTAL_BAG_DETAIL) * order_net_value), 2)        AS net_item,
+        ROUND(SUM((item_revenue / TOTAL_BAG_DETAIL) * order_net_value - item_cost), 2) AS lucro_liquido,
+        ROUND(SUM((item_revenue / TOTAL_BAG_DETAIL) * order_net_value - item_cost) / NULLIF(SUM(QUANTITY), 0), 2) AS lucro_liquido_medio_item,
+        ROUND(SUM((item_revenue / TOTAL_BAG_DETAIL) * order_net_value - item_cost) / NULLIF(SUM(item_cost), 0) * 100, 2) AS Markup,
+        ANY_VALUE(PREPARATION_TIME)                                                AS preparation_time,
+        order_id                                                                   AS id
+    FROM base_data
+    GROUP BY order_id, SALES_CHANNEL
     ORDER BY Data_Pedido DESC
     """
 

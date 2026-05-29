@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import date, timedelta
 from read_item_sales_analysis import read_item_sales_analysis
+from manage_subitem_exclusions import list_subitem_exclusions, insert_subitem_exclusion, delete_subitem_exclusion
 import plotly.express as px
 import pandas as pd
 
@@ -140,7 +141,49 @@ def tab_subitem_analysis(start_date: date, end_date: date, sales_channel: str , 
 
         # ---- Tabela completa de produtos ----
         st.subheader("Preferencia dos Clientes")
-        st.dataframe(sub_item_df, use_container_width=True ,hide_index=True )
+        st.dataframe(sub_item_df, use_container_width=True, hide_index=True)
 
     else:
         st.info("Nenhum dado Preferencia dos Clientes encontrado para o período e canal selecionados.")
+
+    # ---- Gestão de Exclusões ----
+    st.divider()
+    st.subheader("🚫 Sub-itens Excluídos da Análise")
+    st.caption("Sub-itens ignorados nos gráficos e tabela de preferências (ex: utensílios, bebidas, opções de tamanho).")
+
+    df_exc = list_subitem_exclusions()
+
+    if not df_exc.empty:
+        sel = st.dataframe(
+            df_exc,
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="subitem_exc_grid",
+            column_config={
+                "ID": None,
+                "Cadastrado_Em": st.column_config.DatetimeColumn("Cadastrado em", format="DD/MM/YYYY HH:mm"),
+            }
+        )
+        rows = sel.get("selection", {}).get("rows", [])
+        if rows:
+            exc_data = df_exc.iloc[rows[0]]
+            if st.button(f"🗑️ Remover: {exc_data['Subitem']}", type="secondary"):
+                if delete_subitem_exclusion(exc_data['ID']):
+                    st.success("Exclusão removida!")
+                    st.rerun()
+
+    with st.form("form_new_subitem_exclusion", clear_on_submit=True):
+        col1, col2 = st.columns([2, 3])
+        with col1:
+            exc_name = st.text_input("Nome exato do sub-item")
+        with col2:
+            exc_reason = st.text_input("Motivo", placeholder="ex: Utensílio, Bebida")
+        if st.form_submit_button("➕ Adicionar", type="primary"):
+            if not exc_name:
+                st.error("Nome é obrigatório.")
+            else:
+                if insert_subitem_exclusion(exc_name, exc_reason):
+                    st.success(f"'{exc_name}' adicionado às exclusões.")
+                    st.rerun()

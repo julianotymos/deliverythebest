@@ -215,3 +215,4 @@ def tab_product_management(start_date=None, end_date=None):
                     "Fim Vigência 2": st.column_config.DateColumn("Fim 2"),
                 }
             )
+
